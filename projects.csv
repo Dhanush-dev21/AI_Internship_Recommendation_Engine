@@ -1,0 +1,11 @@
+project_id,title,domain,required_skills,difficulty
+P001,AI Chatbot,AI,"python,nlp",intermediate
+P002,Machine Learning Prediction System,AI,"python,machine learning",intermediate
+P003,Student Performance Predictor,Data,"python,pandas,scikit-learn",beginner
+P004,Sales Data Analysis Dashboard,Data,"python,pandas,numpy",beginner
+P005,Web Portfolio Website,Web,"html,css,javascript",beginner
+P006,Flask Internship Portal,Web,"python,flask,html,css",intermediate
+P007,Computer Vision Object Detector,AI,"python,opencv,deep learning",advanced
+P008,Deep Learning Image Classifier,AI,"python,tensorflow,deep learning",advanced
+P009,Data Analytics Dashboard,Data,"python,pandas,sql",intermediate
+P010,Full Stack Task Manager,Web,"python,django,javascript",intermediate

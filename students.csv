@@ -1,0 +1,9 @@
+student_id,name,skills,domain,experience_level,interests
+S001,Alice,"python,machine learning,data science",AI,intermediate,"AI,Data Science"
+S002,Bob,"java,spring boot,sql",Web,beginner,"Web Development,Backend"
+S003,Charlie,"python,django,javascript",Web,intermediate,"Web Development,Full Stack"
+S004,Diana,"python,deep learning,computer vision",AI,advanced,"AI,Computer Vision"
+S005,Eve,"java,android,kotlin",Mobile,beginner,"Android Development,Mobile"
+S006,Frank,"python,pandas,numpy,sql",Data,intermediate,"Data Science,Analytics"
+S007,Grace,"python,flask,html,css",Web,beginner,"Web Development,Python"
+S008,Henry,"python,tensorflow,deep learning",AI,advanced,"AI,Deep Learning"

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>AI Internship Recommendation Engine</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>🎯 AI Internship Recommendation Engine</h1>
+
+    <p class="subtitle">
+        Find internships that match your skills, interests and experience.
+    </p>
+
+    <div class="form-card">
+
+        <h2>Your Profile</h2>
+
+        <form method="POST" action="/recommend">
+
+            <label>Name</label>
+            <input type="text" name="name"
+                   placeholder="Enter your name" required>
+
+            <label>Domain</label>
+            <select name="domain" required>
+                <option value="AI">Artificial Intelligence</option>
+                <option value="Data">Data Science</option>
+                <option value="Web">Web Development</option>
+                <option value="Mobile">Mobile Development</option>
+            </select>
+
+            <label>Experience Level</label>
+            <select name="experience" required>
+                <option value="beginner">Beginner</option>
+                <option value="intermediate">Intermediate</option>
+                <option value="advanced">Advanced</option>
+            </select>
+
+            <label>Skills</label>
+            <input type="text" name="skills"
+                   placeholder="Python, Machine Learning, SQL"
+                   required>
+
+            <label>Interests</label>
+            <input type="text" name="interests"
+                   placeholder="AI, Data Science"
+                   required>
+
+            <button type="submit">
+                🔍 Get Personalized Recommendations
+            </button>
+
+        </form>
+
+    </div>
+
+</div>
+
+</body>
+</html>

@@ -1,0 +1,13 @@
+resource_id,title,domain,topics,level,type
+R001,Python Programming Course,Programming,"python,programming",beginner,Course
+R002,Machine Learning Fundamentals,AI,"python,machine learning,scikit-learn",intermediate,Course
+R003,Deep Learning with TensorFlow,AI,"python,tensorflow,deep learning",advanced,Course
+R004,Natural Language Processing Guide,AI,"python,nlp,natural language processing",intermediate,Guide
+R005,Pandas and NumPy for Data Science,Data,"python,pandas,numpy,data science",beginner,Course
+R006,SQL for Data Analysis,Data,"sql,pandas,data analysis",beginner,Course
+R007,Computer Vision with OpenCV,AI,"python,opencv,computer vision",advanced,Course
+R008,Flask Web Development,Web,"python,flask,html,css",intermediate,Course
+R009,Django Full Stack Development,Web,"python,django,javascript",intermediate,Course
+R010,Data Analytics Fundamentals,Data,"python,pandas,sql,data analytics",beginner,Course
+R011,Scikit-learn Practical Guide,AI,"python,machine learning,scikit-learn",intermediate,Guide
+R012,Deep Learning Project Guide,AI,"python,deep learning,tensorflow",advanced,Guide

@@ -1,0 +1,11 @@
+internship_id,title,company,domain,required_skills,experience_level,duration,location
+I001,Machine Learning Intern,TechAI Solutions,AI,"python,machine learning,scikit-learn",intermediate,2 months,Remote
+I002,Data Science Intern,DataWorks,Data,"python,pandas,numpy,sql",intermediate,3 months,Remote
+I003,Web Development Intern,WebTech,Web,"html,css,javascript",beginner,2 months,Remote
+I004,Python Developer Intern,CodeLabs,Web,"python,flask,html,css",beginner,2 months,Remote
+I005,Deep Learning Intern,NeuralTech,AI,"python,tensorflow,deep learning",advanced,3 months,Remote
+I006,Computer Vision Intern,VisionAI,AI,"python,computer vision,machine learning",advanced,3 months,Remote
+I007,Android Development Intern,MobileWorks,Mobile,"java,kotlin,android",beginner,2 months,Hybrid
+I008,Data Analytics Intern,InsightData,Data,"python,pandas,sql",intermediate,2 months,Remote
+I009,Full Stack Development Intern,DevHub,Web,"python,django,javascript",intermediate,3 months,Remote
+I010,AI Research Intern,FutureAI,AI,"python,machine learning,deep learning",advanced,4 months,Remote
