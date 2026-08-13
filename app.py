@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request
 import pandas as pd
+import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
@@ -19,16 +20,67 @@ resources = pd.read_csv("resources.csv")
 
 
 # ============================================================
-# CONTENT-BASED INTERNSHIP RECOMMENDATION
+# DATA PREPROCESSING
 # ============================================================
 
-def content_scores(domain, experience, skills, interests):
+def preprocess_dataframe(df):
+    """
+    Clean text columns while avoiding the pandas 4 warning.
+    """
 
-    user_profile = (
+    df = df.copy()
+
+    for column in df.select_dtypes(include=["str"]).columns:
+        df[column] = df[column].fillna("").astype(str).str.strip()
+
+    return df
+
+
+students = preprocess_dataframe(students)
+internships = preprocess_dataframe(internships)
+ratings = preprocess_dataframe(ratings)
+projects = preprocess_dataframe(projects)
+resources = preprocess_dataframe(resources)
+
+
+# ============================================================
+# CREATE USER PROFILE
+# ============================================================
+
+def create_user_profile(
+    domain,
+    experience,
+    skills,
+    interests
+):
+    """
+    Create a combined text profile for the student.
+    """
+
+    return (
         str(domain).lower() + " "
         + str(experience).lower() + " "
         + str(skills).lower() + " "
         + str(interests).lower()
+    )
+
+
+# ============================================================
+# CONTENT-BASED INTERNSHIP RECOMMENDATION
+# ============================================================
+
+def content_internship_scores(
+    domain,
+    experience,
+    skills,
+    interests
+):
+
+    user_profile = create_user_profile(
+        domain,
+        experience,
+        skills,
+        interests
     )
 
     internship_profiles = []
@@ -46,7 +98,10 @@ def content_scores(domain, experience, skills, interests):
     documents = [user_profile] + internship_profiles
 
     vectorizer = TfidfVectorizer()
-    tfidf_matrix = vectorizer.fit_transform(documents)
+
+    tfidf_matrix = vectorizer.fit_transform(
+        documents
+    )
 
     similarity = cosine_similarity(
         tfidf_matrix[0:1],
@@ -60,7 +115,10 @@ def content_scores(domain, experience, skills, interests):
         score = similarity[index] * 100
 
         # Domain bonus
-        if str(row["domain"]).lower() == str(domain).lower():
+        if (
+            str(row["domain"]).lower()
+            == str(domain).lower()
+        ):
             score += 10
 
         # Experience bonus
@@ -90,15 +148,19 @@ def collaborative_scores(student_id):
         fill_value=0
     )
 
-    # New student / unknown student
+    # Student does not exist
     if student_id not in rating_matrix.index:
 
         return {
             internship_id: 0
-            for internship_id in internships["internship_id"]
+            for internship_id
+            in internships["internship_id"]
         }
 
-    student_similarity = cosine_similarity(rating_matrix)
+    # Student similarity
+    student_similarity = cosine_similarity(
+        rating_matrix
+    )
 
     similarity_df = pd.DataFrame(
         student_similarity,
@@ -106,8 +168,11 @@ def collaborative_scores(student_id):
         columns=rating_matrix.index
     )
 
-    similar_students = similarity_df.loc[student_id]
+    similar_students = similarity_df.loc[
+        student_id
+    ]
 
+    # Remove current student
     similar_students = similar_students.drop(
         student_id,
         errors="ignore"
@@ -115,12 +180,17 @@ def collaborative_scores(student_id):
 
     scores = {}
 
-    for internship_id in internships["internship_id"]:
+    for internship_id in internships[
+        "internship_id"
+    ]:
 
         weighted_sum = 0
         similarity_sum = 0
 
-        for other_student, similarity in similar_students.items():
+        for (
+            other_student,
+            similarity
+        ) in similar_students.items():
 
             rating = rating_matrix.loc[
                 other_student,
@@ -129,14 +199,21 @@ def collaborative_scores(student_id):
 
             if rating > 0:
 
-                weighted_sum += similarity * rating
+                weighted_sum += (
+                    similarity * rating
+                )
+
                 similarity_sum += similarity
 
         if similarity_sum > 0:
+
             predicted_rating = (
-                weighted_sum / similarity_sum
+                weighted_sum
+                / similarity_sum
             )
+
         else:
+
             predicted_rating = 0
 
         scores[internship_id] = predicted_rating
@@ -145,154 +222,11 @@ def collaborative_scores(student_id):
 
 
 # ============================================================
-# PROJECT RECOMMENDATIONS
-# ============================================================
-
-def project_recommendations(domain, experience, skills, interests):
-
-    user_text = (
-        str(domain).lower() + " "
-        + str(experience).lower() + " "
-        + str(skills).lower() + " "
-        + str(interests).lower()
-    )
-
-    project_profiles = []
-
-    for _, row in projects.iterrows():
-
-        profile = (
-            str(row["domain"]).lower() + " "
-            + str(row["difficulty"]).lower() + " "
-            + str(row["required_skills"]).lower()
-        )
-
-        project_profiles.append(profile)
-
-    documents = [user_text] + project_profiles
-
-    vectorizer = TfidfVectorizer()
-    matrix = vectorizer.fit_transform(documents)
-
-    similarity = cosine_similarity(
-        matrix[0:1],
-        matrix[1:]
-    )[0]
-
-    results = []
-
-    for index, row in projects.iterrows():
-
-        score = similarity[index] * 100
-
-        # Domain bonus
-        if str(row["domain"]).lower() == str(domain).lower():
-            score += 10
-
-        # Experience / difficulty bonus
-        if (
-            str(row["difficulty"]).lower()
-            == str(experience).lower()
-        ):
-            score += 5
-
-        score = min(score, 100)
-
-        results.append({
-            "title": row["title"],
-            "domain": row["domain"],
-            "required_skills": row["required_skills"],
-            "difficulty": row["difficulty"],
-            "score": score
-        })
-
-    results = sorted(
-        results,
-        key=lambda x: x["score"],
-        reverse=True
-    )
-
-    return results[:5]
-
-
-# ============================================================
-# LEARNING RESOURCE RECOMMENDATIONS
-# ============================================================
-
-def resource_recommendations(domain, experience, skills, interests):
-
-    user_text = (
-        str(domain).lower() + " "
-        + str(experience).lower() + " "
-        + str(skills).lower() + " "
-        + str(interests).lower()
-    )
-
-    resource_profiles = []
-
-    for _, row in resources.iterrows():
-
-        profile = (
-            str(row["domain"]).lower() + " "
-            + str(row["level"]).lower() + " "
-            + str(row["topics"]).lower()
-        )
-
-        resource_profiles.append(profile)
-
-    documents = [user_text] + resource_profiles
-
-    vectorizer = TfidfVectorizer()
-    matrix = vectorizer.fit_transform(documents)
-
-    similarity = cosine_similarity(
-        matrix[0:1],
-        matrix[1:]
-    )[0]
-
-    results = []
-
-    for index, row in resources.iterrows():
-
-        score = similarity[index] * 100
-
-        # Domain bonus
-        if str(row["domain"]).lower() == str(domain).lower():
-            score += 10
-
-        # Level bonus
-        if (
-            str(row["level"]).lower()
-            == str(experience).lower()
-        ):
-            score += 5
-
-        score = min(score, 100)
-
-        results.append({
-            "title": row["title"],
-            "domain": row["domain"],
-            "topics": row["topics"],
-            "level": row["level"],
-            "type": row["type"],
-            "score": score
-        })
-
-    results = sorted(
-        results,
-        key=lambda x: x["score"],
-        reverse=True
-    )
-
-    return results[:5]
-
-
-# ============================================================
 # HYBRID INTERNSHIP RECOMMENDATION
 # 60% CONTENT + 40% COLLABORATIVE
 # ============================================================
 
-def get_recommendations(
+def get_internship_recommendations(
     name,
     domain,
     experience,
@@ -310,8 +244,13 @@ def get_recommendations(
     ]
 
     if len(student) > 0:
-        student_id = student.iloc[0]["student_id"]
+
+        student_id = student.iloc[0][
+            "student_id"
+        ]
+
     else:
+
         student_id = None
 
 
@@ -319,7 +258,7 @@ def get_recommendations(
     # Content scores
     # --------------------------------------------------------
 
-    content = content_scores(
+    content = content_internship_scores(
         domain,
         experience,
         skills,
@@ -341,7 +280,8 @@ def get_recommendations(
 
         collaborative = {
             internship_id: 0
-            for internship_id in internships["internship_id"]
+            for internship_id
+            in internships["internship_id"]
         }
 
 
@@ -355,12 +295,16 @@ def get_recommendations(
 
     normalized_collaborative = {}
 
-    for internship_id, score in collaborative.items():
+    for (
+        internship_id,
+        score
+    ) in collaborative.items():
 
         if max_collaborative > 0:
 
             normalized_score = (
-                score / max_collaborative
+                score
+                / max_collaborative
             ) * 100
 
         else:
@@ -373,24 +317,27 @@ def get_recommendations(
 
 
     # --------------------------------------------------------
-    # Hybrid score
-    # 60% Content + 40% Collaborative
+    # Hybrid scores
     # --------------------------------------------------------
 
     results = []
 
     for _, row in internships.iterrows():
 
-        internship_id = row["internship_id"]
+        internship_id = row[
+            "internship_id"
+        ]
 
         content_score = content.get(
             internship_id,
             0
         )
 
-        collaborative_score = normalized_collaborative.get(
-            internship_id,
-            0
+        collaborative_score = (
+            normalized_collaborative.get(
+                internship_id,
+                0
+            )
         )
 
         hybrid_score = (
@@ -409,18 +356,215 @@ def get_recommendations(
             "experience_level":
                 row["experience_level"],
 
-            "duration": row["duration"],
+            "duration":
+                row["duration"],
 
-            "location": row["location"],
+            "location":
+                row["location"],
 
-            "score": hybrid_score
-
+            "score":
+                hybrid_score
         })
 
 
     # --------------------------------------------------------
     # Sort
     # --------------------------------------------------------
+
+    results = sorted(
+        results,
+        key=lambda x: x["score"],
+        reverse=True
+    )
+
+    return results[:5]
+
+
+# ============================================================
+# PROJECT RECOMMENDATION
+# ============================================================
+
+def get_project_recommendations(
+    domain,
+    experience,
+    skills,
+    interests
+):
+
+    user_profile = create_user_profile(
+        domain,
+        experience,
+        skills,
+        interests
+    )
+
+    project_profiles = []
+
+    for _, row in projects.iterrows():
+
+        profile = (
+            str(row["domain"]).lower() + " "
+            + str(row["difficulty"]).lower() + " "
+            + str(row["required_skills"]).lower()
+        )
+
+        project_profiles.append(profile)
+
+    documents = [
+        user_profile
+    ] + project_profiles
+
+    vectorizer = TfidfVectorizer()
+
+    tfidf_matrix = vectorizer.fit_transform(
+        documents
+    )
+
+    similarity = cosine_similarity(
+        tfidf_matrix[0:1],
+        tfidf_matrix[1:]
+    )[0]
+
+    results = []
+
+    for index, row in projects.iterrows():
+
+        score = similarity[index] * 100
+
+        # Domain bonus
+        if (
+            str(row["domain"]).lower()
+            == str(domain).lower()
+        ):
+            score += 10
+
+        # Difficulty / experience match
+        if (
+            str(row["difficulty"]).lower()
+            == str(experience).lower()
+        ):
+            score += 5
+
+        score = min(score, 100)
+
+        results.append({
+
+            "title":
+                row["title"],
+
+            "domain":
+                row["domain"],
+
+            "required_skills":
+                row["required_skills"],
+
+            "difficulty":
+                row["difficulty"],
+
+            "score":
+                score
+        })
+
+    results = sorted(
+        results,
+        key=lambda x: x["score"],
+        reverse=True
+    )
+
+    return results[:5]
+
+
+# ============================================================
+# LEARNING RESOURCE RECOMMENDATION
+# ============================================================
+
+def get_resource_recommendations(
+    domain,
+    experience,
+    skills,
+    interests
+):
+
+    user_profile = create_user_profile(
+        domain,
+        experience,
+        skills,
+        interests
+    )
+
+    resource_profiles = []
+
+    for _, row in resources.iterrows():
+
+        profile = (
+            str(row["domain"]).lower() + " "
+            + str(row["level"]).lower() + " "
+            + str(row["topics"]).lower()
+        )
+
+        resource_profiles.append(profile)
+
+    documents = [
+        user_profile
+    ] + resource_profiles
+
+    vectorizer = TfidfVectorizer()
+
+    tfidf_matrix = vectorizer.fit_transform(
+        documents
+    )
+
+    similarity = cosine_similarity(
+        tfidf_matrix[0:1],
+        tfidf_matrix[1:]
+    )[0]
+
+    results = []
+
+    for index, row in resources.iterrows():
+
+        score = similarity[index] * 100
+
+        # Domain bonus
+        if (
+            str(row["domain"]).lower()
+            == str(domain).lower()
+        ):
+            score += 10
+
+        # Level / experience bonus
+        if (
+            str(row["level"]).lower()
+            == str(experience).lower()
+        ):
+            score += 5
+
+        score = min(score, 100)
+
+        resource_id = row[
+            "resource_id"
+        ]
+
+        results.append({
+
+            "title":
+                row["title"],
+
+            "domain":
+                row["domain"],
+
+            "topics":
+                row["topics"],
+
+            "level":
+                row["level"],
+
+            "type":
+                row["type"],
+
+            "score":
+                score
+        })
 
     results = sorted(
         results,
@@ -453,7 +597,9 @@ def home():
 )
 def recommend():
 
+    # --------------------------------------------------------
     # Get form data
+    # --------------------------------------------------------
 
     name = request.form.get(
         "name",
@@ -485,12 +631,14 @@ def recommend():
     # Internship recommendations
     # --------------------------------------------------------
 
-    recommendations = get_recommendations(
-        name,
-        domain,
-        experience,
-        skills,
-        interests
+    internship_results = (
+        get_internship_recommendations(
+            name,
+            domain,
+            experience,
+            skills,
+            interests
+        )
     )
 
 
@@ -498,28 +646,32 @@ def recommend():
     # Project recommendations
     # --------------------------------------------------------
 
-    project_results = project_recommendations(
-        domain,
-        experience,
-        skills,
-        interests
+    project_results = (
+        get_project_recommendations(
+            domain,
+            experience,
+            skills,
+            interests
+        )
     )
 
 
     # --------------------------------------------------------
-    # Learning resource recommendations
+    # Learning resources
     # --------------------------------------------------------
 
-    resource_results = resource_recommendations(
-        domain,
-        experience,
-        skills,
-        interests
+    resource_results = (
+        get_resource_recommendations(
+            domain,
+            experience,
+            skills,
+            interests
+        )
     )
 
 
     # --------------------------------------------------------
-    # Send all results to results.html
+    # Send results to results.html
     # --------------------------------------------------------
 
     return render_template(
@@ -536,7 +688,7 @@ def recommend():
 
         interests=interests,
 
-        recommendations=recommendations,
+        recommendations=internship_results,
 
         project_results=project_results,
 
