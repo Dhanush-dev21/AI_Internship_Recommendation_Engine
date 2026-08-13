@@ -1,113 +1,25 @@
 <!DOCTYPE html>
 <html>
+
 <head>
+
     <title>Internship Recommendations</title>
+
     <link rel="stylesheet"
-      href="{{ url_for('static', filename='style.css') }}">
+          href="{{ url_for('static', filename='style.css') }}">
 
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: #f4f6f8;
-            margin: 0;
-            padding: 30px;
-        }
-
-        .container {
-            max-width: 900px;
-            margin: auto;
-        }
-
-        h1 {
-            text-align: center;
-            margin-bottom: 25px;
-        }
-
-        .profile {
-            background: white;
-            padding: 25px;
-            border-radius: 12px;
-            box-shadow: 0 3px 10px rgba(0,0,0,0.08);
-            margin-bottom: 25px;
-        }
-
-        .profile h2 {
-            margin-top: 0;
-        }
-
-        .profile p {
-            margin: 8px 0;
-        }
-
-        .recommendation {
-            background: white;
-            padding: 22px;
-            margin-bottom: 18px;
-            border-radius: 12px;
-            box-shadow: 0 3px 10px rgba(0,0,0,0.08);
-        }
-
-        .recommendation h2 {
-            margin-top: 0;
-        }
-
-        .company {
-            color: #555;
-            font-weight: bold;
-        }
-
-        .details {
-            margin: 15px 0;
-            line-height: 1.8;
-        }
-
-        .score-label {
-            font-weight: bold;
-        }
-
-        .progress {
-            width: 100%;
-            height: 14px;
-            background: #e5e7eb;
-            border-radius: 10px;
-            overflow: hidden;
-            margin-top: 8px;
-        }
-
-        .progress-bar {
-            height: 100%;
-            background: #2563eb;
-            border-radius: 10px;
-        }
-
-        .score {
-            margin-top: 8px;
-            font-weight: bold;
-            color: #2563eb;
-        }
-
-        .back {
-            display: block;
-            text-align: center;
-            margin-top: 25px;
-            padding: 12px;
-            background: #2563eb;
-            color: white;
-            text-decoration: none;
-            border-radius: 7px;
-        }
-
-        .back:hover {
-            background: #1d4ed8;
-        }
-    </style>
 </head>
 
 <body>
 
 <div class="container">
 
-    <h1>🎯 Internship Recommendations</h1>
+    <h1>🎯 AI Internship Recommendation Engine</h1>
+
+
+    <!-- =====================================================
+         PROFILE
+    ====================================================== -->
 
     <div class="profile">
 
@@ -141,7 +53,11 @@
     </div>
 
 
-    <h2>Top 5 Internship Recommendations</h2>
+    <!-- =====================================================
+         INTERNSHIP RECOMMENDATIONS
+    ====================================================== -->
+
+    <h2>💼 Top 5 Internship Recommendations</h2>
 
 
     {% for internship in recommendations %}
@@ -160,14 +76,17 @@
 
             <strong>Domain:</strong>
             {{ internship.domain }}
+
             <br>
 
             <strong>Experience:</strong>
             {{ internship.experience_level }}
+
             <br>
 
             <strong>Duration:</strong>
             {{ internship.duration }}
+
             <br>
 
             <strong>Location:</strong>
@@ -198,6 +117,123 @@
     {% endfor %}
 
 
+    <!-- =====================================================
+         PROJECT RECOMMENDATIONS
+    ====================================================== -->
+
+    <h2>💻 Top 5 Project Recommendations</h2>
+
+
+    {% for project in project_results %}
+
+    <div class="recommendation">
+
+        <h2>
+            {{ loop.index }}. {{ project.title }}
+        </h2>
+
+        <p class="company">
+            Domain: {{ project.domain }}
+        </p>
+
+        <div class="details">
+
+            <strong>Required Skills:</strong>
+            {{ project.required_skills }}
+
+            <br>
+
+            <strong>Difficulty:</strong>
+            {{ project.difficulty }}
+
+        </div>
+
+
+        <div class="score-label">
+            Match Score
+        </div>
+
+        <div class="progress">
+
+            <div
+                class="progress-bar"
+                style="width: {{ project.score }}%;"
+            ></div>
+
+        </div>
+
+        <div class="score">
+            {{ "%.2f"|format(project.score) }}%
+        </div>
+
+    </div>
+
+    {% endfor %}
+
+
+    <!-- =====================================================
+         LEARNING RESOURCE RECOMMENDATIONS
+    ====================================================== -->
+
+    <h2>📚 Top 5 Learning Resources</h2>
+
+
+    {% for resource in resource_results %}
+
+    <div class="recommendation">
+
+        <h2>
+            {{ loop.index }}. {{ resource.title }}
+        </h2>
+
+        <p class="company">
+            {{ resource.type }}
+        </p>
+
+        <div class="details">
+
+            <strong>Domain:</strong>
+            {{ resource.domain }}
+
+            <br>
+
+            <strong>Topics:</strong>
+            {{ resource.topics }}
+
+            <br>
+
+            <strong>Level:</strong>
+            {{ resource.level }}
+
+        </div>
+
+
+        <div class="score-label">
+            Match Score
+        </div>
+
+        <div class="progress">
+
+            <div
+                class="progress-bar"
+                style="width: {{ resource.score }}%;"
+            ></div>
+
+        </div>
+
+        <div class="score">
+            {{ "%.2f"|format(resource.score) }}%
+        </div>
+
+    </div>
+
+    {% endfor %}
+
+
+    <!-- =====================================================
+         BACK BUTTON
+    ====================================================== -->
+
     <a href="/" class="back">
         ← Try Another Profile
     </a>
@@ -205,4 +241,5 @@
 </div>
 
 </body>
+
 </html>
