@@ -1,6 +1,5 @@
 from flask import Flask, render_template, request
 import pandas as pd
-import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
@@ -15,10 +14,12 @@ app = Flask(__name__)
 students = pd.read_csv("students.csv")
 internships = pd.read_csv("internships.csv")
 ratings = pd.read_csv("ratings.csv")
+projects = pd.read_csv("projects.csv")
+resources = pd.read_csv("resources.csv")
 
 
 # ============================================================
-# CONTENT-BASED RECOMMENDATION
+# CONTENT-BASED INTERNSHIP RECOMMENDATION
 # ============================================================
 
 def content_scores(domain, experience, skills, interests):
@@ -45,7 +46,6 @@ def content_scores(domain, experience, skills, interests):
     documents = [user_profile] + internship_profiles
 
     vectorizer = TfidfVectorizer()
-
     tfidf_matrix = vectorizer.fit_transform(documents)
 
     similarity = cosine_similarity(
@@ -83,7 +83,6 @@ def content_scores(domain, experience, skills, interests):
 
 def collaborative_scores(student_id):
 
-    # Create rating matrix
     rating_matrix = ratings.pivot_table(
         index="student_id",
         columns="internship_id",
@@ -91,7 +90,7 @@ def collaborative_scores(student_id):
         fill_value=0
     )
 
-    # If student doesn't exist, return zero scores
+    # New student / unknown student
     if student_id not in rating_matrix.index:
 
         return {
@@ -99,7 +98,6 @@ def collaborative_scores(student_id):
             for internship_id in internships["internship_id"]
         }
 
-    # Calculate similarity between students
     student_similarity = cosine_similarity(rating_matrix)
 
     similarity_df = pd.DataFrame(
@@ -108,16 +106,13 @@ def collaborative_scores(student_id):
         columns=rating_matrix.index
     )
 
-    # Similarity values for selected student
     similar_students = similarity_df.loc[student_id]
 
-    # Remove the student themselves
     similar_students = similar_students.drop(
         student_id,
         errors="ignore"
     )
 
-    # Calculate weighted recommendations
     scores = {}
 
     for internship_id in internships["internship_id"]:
@@ -150,7 +145,150 @@ def collaborative_scores(student_id):
 
 
 # ============================================================
-# HYBRID RECOMMENDATION
+# PROJECT RECOMMENDATIONS
+# ============================================================
+
+def project_recommendations(domain, experience, skills, interests):
+
+    user_text = (
+        str(domain).lower() + " "
+        + str(experience).lower() + " "
+        + str(skills).lower() + " "
+        + str(interests).lower()
+    )
+
+    project_profiles = []
+
+    for _, row in projects.iterrows():
+
+        profile = (
+            str(row["domain"]).lower() + " "
+            + str(row["difficulty"]).lower() + " "
+            + str(row["required_skills"]).lower()
+        )
+
+        project_profiles.append(profile)
+
+    documents = [user_text] + project_profiles
+
+    vectorizer = TfidfVectorizer()
+    matrix = vectorizer.fit_transform(documents)
+
+    similarity = cosine_similarity(
+        matrix[0:1],
+        matrix[1:]
+    )[0]
+
+    results = []
+
+    for index, row in projects.iterrows():
+
+        score = similarity[index] * 100
+
+        # Domain bonus
+        if str(row["domain"]).lower() == str(domain).lower():
+            score += 10
+
+        # Experience / difficulty bonus
+        if (
+            str(row["difficulty"]).lower()
+            == str(experience).lower()
+        ):
+            score += 5
+
+        score = min(score, 100)
+
+        results.append({
+            "title": row["title"],
+            "domain": row["domain"],
+            "required_skills": row["required_skills"],
+            "difficulty": row["difficulty"],
+            "score": score
+        })
+
+    results = sorted(
+        results,
+        key=lambda x: x["score"],
+        reverse=True
+    )
+
+    return results[:5]
+
+
+# ============================================================
+# LEARNING RESOURCE RECOMMENDATIONS
+# ============================================================
+
+def resource_recommendations(domain, experience, skills, interests):
+
+    user_text = (
+        str(domain).lower() + " "
+        + str(experience).lower() + " "
+        + str(skills).lower() + " "
+        + str(interests).lower()
+    )
+
+    resource_profiles = []
+
+    for _, row in resources.iterrows():
+
+        profile = (
+            str(row["domain"]).lower() + " "
+            + str(row["level"]).lower() + " "
+            + str(row["topics"]).lower()
+        )
+
+        resource_profiles.append(profile)
+
+    documents = [user_text] + resource_profiles
+
+    vectorizer = TfidfVectorizer()
+    matrix = vectorizer.fit_transform(documents)
+
+    similarity = cosine_similarity(
+        matrix[0:1],
+        matrix[1:]
+    )[0]
+
+    results = []
+
+    for index, row in resources.iterrows():
+
+        score = similarity[index] * 100
+
+        # Domain bonus
+        if str(row["domain"]).lower() == str(domain).lower():
+            score += 10
+
+        # Level bonus
+        if (
+            str(row["level"]).lower()
+            == str(experience).lower()
+        ):
+            score += 5
+
+        score = min(score, 100)
+
+        results.append({
+            "title": row["title"],
+            "domain": row["domain"],
+            "topics": row["topics"],
+            "level": row["level"],
+            "type": row["type"],
+            "score": score
+        })
+
+    results = sorted(
+        results,
+        key=lambda x: x["score"],
+        reverse=True
+    )
+
+    return results[:5]
+
+
+# ============================================================
+# HYBRID INTERNSHIP RECOMMENDATION
 # 60% CONTENT + 40% COLLABORATIVE
 # ============================================================
 
@@ -172,12 +310,8 @@ def get_recommendations(
     ]
 
     if len(student) > 0:
-
         student_id = student.iloc[0]["student_id"]
-
     else:
-
-        # New user
         student_id = None
 
 
@@ -240,8 +374,7 @@ def get_recommendations(
 
     # --------------------------------------------------------
     # Hybrid score
-    # 60% Content
-    # 40% Collaborative
+    # 60% Content + 40% Collaborative
     # --------------------------------------------------------
 
     results = []
@@ -286,7 +419,7 @@ def get_recommendations(
 
 
     # --------------------------------------------------------
-    # Sort recommendations
+    # Sort
     # --------------------------------------------------------
 
     results = sorted(
@@ -295,8 +428,6 @@ def get_recommendations(
         reverse=True
     )
 
-
-    # Top 5
     return results[:5]
 
 
@@ -350,24 +481,46 @@ def recommend():
     ).strip()
 
 
-    # Generate recommendations
+    # --------------------------------------------------------
+    # Internship recommendations
+    # --------------------------------------------------------
 
     recommendations = get_recommendations(
-
         name,
-
         domain,
-
         experience,
-
         skills,
-
         interests
-
     )
 
 
-    # Send data to results.html
+    # --------------------------------------------------------
+    # Project recommendations
+    # --------------------------------------------------------
+
+    project_results = project_recommendations(
+        domain,
+        experience,
+        skills,
+        interests
+    )
+
+
+    # --------------------------------------------------------
+    # Learning resource recommendations
+    # --------------------------------------------------------
+
+    resource_results = resource_recommendations(
+        domain,
+        experience,
+        skills,
+        interests
+    )
+
+
+    # --------------------------------------------------------
+    # Send all results to results.html
+    # --------------------------------------------------------
 
     return render_template(
 
@@ -383,7 +536,11 @@ def recommend():
 
         interests=interests,
 
-        recommendations=recommendations
+        recommendations=recommendations,
+
+        project_results=project_results,
+
+        resource_results=resource_results
 
     )
 
