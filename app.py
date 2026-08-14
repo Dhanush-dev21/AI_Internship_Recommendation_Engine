@@ -1,8 +1,10 @@
 from flask import Flask, render_template, request
 import pandas as pd
 import numpy as np
+
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.metrics import mean_absolute_error, mean_squared_error
 
 
 app = Flask(__name__)
@@ -25,13 +27,18 @@ resources = pd.read_csv("resources.csv")
 
 def preprocess_dataframe(df):
     """
-    Clean text columns while avoiding the pandas 4 warning.
+    Clean text columns while avoiding pandas 4 warnings.
     """
 
     df = df.copy()
 
     for column in df.select_dtypes(include=["str"]).columns:
-        df[column] = df[column].fillna("").astype(str).str.strip()
+        df[column] = (
+            df[column]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+        )
 
     return df
 
@@ -95,7 +102,9 @@ def content_internship_scores(
 
         internship_profiles.append(profile)
 
-    documents = [user_profile] + internship_profiles
+    documents = [
+        user_profile
+    ] + internship_profiles
 
     vectorizer = TfidfVectorizer()
 
@@ -130,7 +139,9 @@ def content_internship_scores(
 
         score = min(score, 100)
 
-        scores[row["internship_id"]] = score
+        scores[
+            row["internship_id"]
+        ] = score
 
     return scores
 
@@ -216,9 +227,148 @@ def collaborative_scores(student_id):
 
             predicted_rating = 0
 
-        scores[internship_id] = predicted_rating
+        scores[
+            internship_id
+        ] = predicted_rating
 
     return scores
+
+
+# ============================================================
+# EVALUATION METRICS
+# MAE + RMSE FOR COLLABORATIVE FILTERING
+# ============================================================
+
+def evaluate_collaborative_filtering():
+
+    rating_matrix = ratings.pivot_table(
+        index="student_id",
+        columns="internship_id",
+        values="rating",
+        fill_value=0
+    )
+
+    actual_ratings = []
+    predicted_ratings = []
+
+    # Evaluate every known rating
+    for _, rating_row in ratings.iterrows():
+
+        student_id = rating_row[
+            "student_id"
+        ]
+
+        internship_id = rating_row[
+            "internship_id"
+        ]
+
+        actual_rating = float(
+            rating_row["rating"]
+        )
+
+        # Create a copy for
+        # leave-one-out evaluation
+        evaluation_matrix = (
+            rating_matrix.copy()
+        )
+
+        # Hide the rating being evaluated
+        evaluation_matrix.loc[
+            student_id,
+            internship_id
+        ] = 0
+
+        # Calculate student similarity
+        similarity_matrix = cosine_similarity(
+            evaluation_matrix
+        )
+
+        similarity_df = pd.DataFrame(
+            similarity_matrix,
+            index=evaluation_matrix.index,
+            columns=evaluation_matrix.index
+        )
+
+        similar_students = (
+            similarity_df.loc[
+                student_id
+            ]
+            .drop(
+                student_id,
+                errors="ignore"
+            )
+        )
+
+        weighted_sum = 0
+        similarity_sum = 0
+
+        for (
+            other_student,
+            similarity
+        ) in similar_students.items():
+
+            other_rating = (
+                evaluation_matrix.loc[
+                    other_student,
+                    internship_id
+                ]
+            )
+
+            if (
+                other_rating > 0
+                and similarity > 0
+            ):
+
+                weighted_sum += (
+                    similarity
+                    * other_rating
+                )
+
+                similarity_sum += similarity
+
+        # Only evaluate when
+        # a prediction is possible
+        if similarity_sum > 0:
+
+            predicted_rating = (
+                weighted_sum
+                / similarity_sum
+            )
+
+            actual_ratings.append(
+                actual_rating
+            )
+
+            predicted_ratings.append(
+                predicted_rating
+            )
+
+    # No predictions available
+    if not actual_ratings:
+
+        return {
+            "mae": 0,
+            "rmse": 0
+        }
+
+    # Mean Absolute Error
+    mae = mean_absolute_error(
+        actual_ratings,
+        predicted_ratings
+    )
+
+    # Root Mean Squared Error
+    rmse = np.sqrt(
+        mean_squared_error(
+            actual_ratings,
+            predicted_ratings
+        )
+    )
+
+    return {
+        "mae": mae,
+        "rmse": rmse
+    }
 
 
 # ============================================================
@@ -251,8 +401,8 @@ def get_internship_recommendations(
 
     else:
 
+        # New user
         student_id = None
-
 
     # --------------------------------------------------------
     # Content scores
@@ -264,7 +414,6 @@ def get_internship_recommendations(
         skills,
         interests
     )
-
 
     # --------------------------------------------------------
     # Collaborative scores
@@ -284,14 +433,17 @@ def get_internship_recommendations(
             in internships["internship_id"]
         }
 
-
     # --------------------------------------------------------
     # Normalize collaborative scores
     # --------------------------------------------------------
 
-    max_collaborative = max(
-        collaborative.values()
-    ) if collaborative else 0
+    max_collaborative = (
+        max(
+            collaborative.values()
+        )
+        if collaborative
+        else 0
+    )
 
     normalized_collaborative = {}
 
@@ -314,7 +466,6 @@ def get_internship_recommendations(
         normalized_collaborative[
             internship_id
         ] = normalized_score
-
 
     # --------------------------------------------------------
     # Hybrid scores
@@ -365,7 +516,6 @@ def get_internship_recommendations(
             "score":
                 hybrid_score
         })
-
 
     # --------------------------------------------------------
     # Sort
@@ -576,6 +726,34 @@ def get_resource_recommendations(
 
 
 # ============================================================
+# CALCULATE EVALUATION METRICS
+# ============================================================
+
+evaluation_results = (
+    evaluate_collaborative_filtering()
+)
+
+
+print()
+print("============================================")
+print("RECOMMENDATION ENGINE EVALUATION")
+print("============================================")
+
+print(
+    f"Mean Absolute Error (MAE): "
+    f"{evaluation_results['mae']:.4f}"
+)
+
+print(
+    f"Root Mean Squared Error (RMSE): "
+    f"{evaluation_results['rmse']:.4f}"
+)
+
+print("============================================")
+print()
+
+
+# ============================================================
 # HOME PAGE
 # ============================================================
 
@@ -626,7 +804,6 @@ def recommend():
         ""
     ).strip()
 
-
     # --------------------------------------------------------
     # Internship recommendations
     # --------------------------------------------------------
@@ -641,7 +818,6 @@ def recommend():
         )
     )
 
-
     # --------------------------------------------------------
     # Project recommendations
     # --------------------------------------------------------
@@ -655,7 +831,6 @@ def recommend():
         )
     )
 
-
     # --------------------------------------------------------
     # Learning resources
     # --------------------------------------------------------
@@ -668,7 +843,6 @@ def recommend():
             interests
         )
     )
-
 
     # --------------------------------------------------------
     # Send results to results.html
